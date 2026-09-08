@@ -48,6 +48,7 @@ func main() {
 
 	forkDemo()
 	stronglySeeDemo()
+	roundDemo()
 }
 
 func printState(nodes []*network.Node) {
@@ -259,3 +260,89 @@ func stronglySeeDemo() {
 		),
 	)
 }
+
+func roundDemo() {
+	fmt.Println("\n--- round demo ---")
+
+	alice := network.NewNode("alice")
+	bob := network.NewNode("bob")
+	carol := network.NewNode("carol")
+	dave := network.NewNode("dave")
+
+	nodes := []*network.Node{
+		alice,
+		bob,
+		carol,
+		dave,
+	}
+
+	membership := hashgraph.NewMembership(
+		alice.ID,
+		bob.ID,
+		carol.ID,
+		dave.ID,
+	)
+
+	type exchange struct {
+		from	*network.Node
+		to		*network.Node
+	}
+
+	schedule := []exchange{
+		{alice, bob},
+		{bob, carol},
+		{carol, dave},
+		{dave, alice},
+
+		{alice, carol},
+		{carol, bob},
+		{bob, dave},
+		{dave, carol},
+
+		{carol, alice},
+		{alice, dave},
+		{dave, bob},
+		{bob, alice},
+	}
+
+	// Run several complete gossip waves
+	for cycle := 0; cycle < 3; cycle++ {
+		for _, exchange := range schedule {
+			if err := network.Gossip(exchange.from, exchange.to); err != nil {
+				panic(err)
+			}
+		}
+	}
+
+	for _, node := range nodes {
+		printRounds(node, membership)
+	}
+}
+
+func printRounds(node *network.Node, membership *hashgraph.Membership) {
+	info := node.Graph.DivideRounds(node.Head, membership)
+
+	fmt.Printf(
+		"\n%s\n",
+		node.Name,
+	)
+
+	for _, event := range node.Graph.History(node.Head) {
+		roundInfo := info[event.ID]
+
+		witness := ""
+
+		if roundInfo.Witness {
+			witness = " WITNESS"
+		}
+
+		fmt.Printf(
+			"  creator=%s index=%-3d round=%d%s\n",
+			event.Creator.Short(),
+			event.Index,
+			roundInfo.Round,
+			witness,
+		)
+	}
+}
+
