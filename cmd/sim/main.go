@@ -2,10 +2,9 @@ package main
 
 import (
 	"fmt"
-	"sort"
 
-	"smalltalk/internal/network"
 	"smalltalk/internal/hashgraph"
+	"smalltalk/internal/network"
 )
 
 func main() {
@@ -14,65 +13,41 @@ func main() {
 	carol := network.NewNode("carol")
 	dave := network.NewNode("dave")
 
-	a0 := alice.Head
-	b0 := bob.Head
-	c0 := carol.Head
-	d0 := dave.Head
+	fmt.Println("initial state")
+	printKnowledge(alice)
+	printKnowledge(bob)
+	printKnowledge(carol)
+	printKnowledge(dave)
 
-	nodes := []*network.Node{
-		alice,
-		bob,
-		carol,
-		dave,
-	}
+	fmt.Println("\nalice -> bob")
+	network.Gossip(alice, bob)
 
-	printState("initial", nodes)
+	fmt.Println("\nbob -> carol")
+	network.Gossip(bob, carol)
 
-	gossip("alice -> bob", alice, bob, nodes)
-	gossip("bob -> carol", bob, carol, nodes)
-	gossip("dave -> alice", dave, alice, nodes)
-	gossip("carol -> dave", carol, dave, nodes)
+	fmt.Println("\ndave -> alice")
+	network.Gossip(dave, alice)
 
-	fmt.Println("\nancestry:")
-	fmt.Printf(
-		"does dave know alice's original event? %v\n",
-		hashgraph.IsAncestor(a0, dave.Head),
-	)
+	fmt.Println("\ncarol -> dave")
+	network.Gossip(carol, dave)
 
-	fmt.Printf(
-		"does dave know bob's original event? %v\n",
-		hashgraph.IsAncestor(b0, dave.Head),
-	)
-
-	fmt.Printf(
-		"does dave know carol's original event? %v\n",
-		hashgraph.IsAncestor(c0, dave.Head),
-	)
-
-	fmt.Printf(
-		"did alice learn dave's original event? %v\n",
-		hashgraph.IsAncestor(d0, alice.Head),
-	)	
+	fmt.Println("\nfinal state")
+	printKnowledge(alice)
+	printKnowledge(bob)
+	printKnowledge(carol)
+	printKnowledge(dave)
 }
 
-func gossip(label string, from *network.Node, to *network.Node, nodes []*network.Node) {
-	network.Gossip(from, to)
-	printState(label, nodes)
-}
+func printKnowledge(node *network.Node) {
+	events := hashgraph.Ancestors(node.Head)
 
-func printState(label string, nodes []*network.Node) {
-	fmt.Printf("\n%s\n\n", label)
+	fmt.Printf("\n%s knows:\n", node.Name)
 
-	for _, node := range nodes {
-		values := make([]string, 0, len(node.Known))
-
-		for value := range node.Known {
-			values = append(values, value)
-		}
-
-		sort.Strings(values)
-
-		// Evil
-		fmt.Printf("%-6s %v\n", node.Name, values)
+	for _, event := range events {
+		fmt.Printf(
+			"  %s%d\n",
+			event.Creator,
+			event.Index,
+		)
 	}
 }
