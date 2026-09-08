@@ -1,26 +1,60 @@
 package network
 
 import (
+	"errors"
+
 	"smalltalk/internal/hashgraph"
 )
 
-/*
+var ErrUnknownGossipHead = errors.New("unknown gossip head")
 
-Unidirectional microgossip:
-A, B = {X, Y, Z}, {A, B}
-Gossip(A, B) -> A, B: {X, Y, Z}, {A, B, X, Y, Z}
+func Gossip(from, to *Node) error {
+	return GossipHead(from, to, from.Head)
+}
 
-Events create new states of knowledge.
-
-*/
-
-func Gossip(from, to *Node) {
-	to.Head = &hashgraph.Event{
-		Creator:		to.Name,
-		Index:			to.NextIndex,
-		SelfParent:		to.Head,
-		OtherParent:	from.Head,
+func GossipHead(from *Node, to *Node, head hashgraph.EventID) error {
+	if !from.Graph.Has(head) {
+		return ErrUnknownGossipHead
 	}
 
+	if err := copyMissingEvents(
+		from.Graph,
+		to.Graph,
+		head,
+	); err != nil {
+		return err
+	}
+
+	selfParent := to.Head
+	otherParent := head
+
+	event := hashgraph.NewEvent(
+		to.PrivateKey,
+		to.NextIndex,
+		&selfParent,
+		&otherParent,
+	)
+
+	if err := to.Graph.Add(event); err != nil {
+		return err
+	}
+
+	to.Head = event.ID
 	to.NextIndex++
+
+	return nil
+}
+
+func copyMissingEvents(from *hashgraph.Graph, to *hashgraph.Graph, head hashgraph.EventID) error {
+	for _, event := range from.History(head) {
+		if to.Has(event.ID) {
+			continue
+		}
+
+		if err := to.Add(event); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

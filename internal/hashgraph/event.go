@@ -2,40 +2,53 @@ package hashgraph
 
 import (
 	"bytes"
+	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
 )
 
 type EventID [sha256.Size]byte
+type NodeID [ed25519.PublicKeySize]byte
 
 type Event struct {
-	ID	EventID
+	ID EventID
 
-	Creator	string
-	Index	uint64
+	Creator NodeID
+	Index   uint64
 
-	SelfParent	*EventID
-	OtherParent	*EventID
+	SelfParent  *EventID
+	OtherParent *EventID
+
+	Signature []byte
 }
 
-func NewEvent(creator string, index uint64, selfParent *EventID, otherParent *EventID) Event {
+func NewEvent(privateKey ed25519.PrivateKey, index uint64, selfParent, otherParent *EventID) Event {
+	publicKey := privateKey.Public().(ed25519.PublicKey)
+
+	var creator NodeID
+	copy(creator[:], publicKey)
+
 	event := Event{
-		Creator:	creator,
-		Index:	index,
-		SelfParent:	cloneID(selfParent),
-		OtherParent:	cloneID(otherParent),
+		Creator:     creator,
+		Index:       index,
+		SelfParent:  cloneID(selfParent),
+		OtherParent: cloneID(otherParent),
 	}
 
 	event.ID = event.calculateID()
+
+	event.Signature = ed25519.Sign(
+		privateKey,
+		event.ID[:],
+	)
 
 	return event
 }
 
 func (e Event) calculateID() EventID {
 	var buf bytes.Buffer
-
-	writeString(&buf, e.Creator)
+	buf.Write(e.Creator[:])
 
 	_ = binary.Write(
 		&buf,
@@ -53,18 +66,20 @@ func (e Event) ValidID() bool {
 	return e.ID == e.calculateID()
 }
 
+func (e Event) ValidSignature() bool {
+	return ed25519.Verify(
+		ed25519.PublicKey(e.Creator[:]),
+		e.ID[:],
+		e.Signature,
+	)
+}
+
 func (id EventID) Short() string {
 	return fmt.Sprintf("%x", id[:4])
 }
 
-func writeString(buf *bytes.Buffer, value string) {
-	_ = binary.Write(
-		buf,
-		binary.BigEndian,
-		uint64(len(value)),
-	)
-
-	buf.WriteString(value)
+func (id NodeID) Short() string {
+	return fmt.Sprintf("%x", id[:4])
 }
 
 func writeParent(buf *bytes.Buffer, parent *EventID) {
@@ -85,4 +100,3 @@ func cloneID(id *EventID) *EventID {
 	copy := *id
 	return &copy
 }
-
