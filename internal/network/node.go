@@ -1,8 +1,16 @@
 package network
 
+import (
+	"smalltalk/internal/hashgraph"
+)
+
+// Node state records:
+// set of knowledge + a history describing how knowledge arrived to the node
+
 type Node struct {
 	Name	string
 	Known	map[string]struct{}
+	Head	*hashgraph.Event
 }
 
 func NewNode(name string) *Node {
@@ -13,6 +21,7 @@ func NewNode(name string) *Node {
 
 	// Each node initializes knowing only its own name
 	n.Known[name] = struct{}{}
+	n.Head = &hashgraph.Event{Creator: name}
 
 	return n
 }

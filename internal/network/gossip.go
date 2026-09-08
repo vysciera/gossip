@@ -1,17 +1,28 @@
 package network
 
-/* Unidirectional microgossip.
+import (
+	"smalltalk/internal/hashgraph"
+)
 
-Alice knows: {X, Y, Z}
-Bob knows:	 {A, B}
+/*
 
-Gossip(alice, bob) ->
+Unidirectional microgossip:
+A, B = {X, Y, Z}, {A, B}
+Gossip(A, B) -> A, B: {X, Y, Z}, {A, B, X, Y, Z}
 
-Alice: {X, Y, Z}
-Bob:   {A, B, X, Y, Z} */
+Events create new states of knowledge.
+
+*/
+
 func Gossip(from, to *Node) {
 	for value := range from.Known {
 		to.Learn(value)
+	}
+
+	to.Head = &hashgraph.Event{
+		Creator:		to.Name,
+		SelfParent:		to.Head,
+		OtherParent:	from.Head,
 	}
 }
 
