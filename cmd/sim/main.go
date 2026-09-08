@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"smalltalk/internal/network"
+	"smalltalk/internal/hashgraph"
 )
 
 func main() {
@@ -12,6 +13,11 @@ func main() {
 	bob := network.NewNode("bob")
 	carol := network.NewNode("carol")
 	dave := network.NewNode("dave")
+
+	a0 := alice.Head
+	b0 := bob.Head
+	c0 := carol.Head
+	d0 := dave.Head
 
 	nodes := []*network.Node{
 		alice,
@@ -26,6 +32,27 @@ func main() {
 	gossip("bob -> carol", bob, carol, nodes)
 	gossip("dave -> alice", dave, alice, nodes)
 	gossip("carol -> dave", carol, dave, nodes)
+
+	fmt.Println("\nancestry:")
+	fmt.Printf(
+		"does dave know alice's original event? %v\n",
+		hashgraph.IsAncestor(a0, dave.Head),
+	)
+
+	fmt.Printf(
+		"does dave know bob's original event? %v\n",
+		hashgraph.IsAncestor(b0, dave.Head),
+	)
+
+	fmt.Printf(
+		"does dave know carol's original event? %v\n",
+		hashgraph.IsAncestor(c0, dave.Head),
+	)
+
+	fmt.Printf(
+		"did alice learn dave's original event? %v\n",
+		hashgraph.IsAncestor(d0, alice.Head),
+	)	
 }
 
 func gossip(label string, from *network.Node, to *network.Node, nodes []*network.Node) {
