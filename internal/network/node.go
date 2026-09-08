@@ -8,30 +8,15 @@ import (
 // set of knowledge + a history describing how knowledge arrived to the node
 
 type Node struct {
-	Name	string
-	Known	map[string]struct{}
-	Head	*hashgraph.Event
+	Name		string
+	Head		*hashgraph.Event
+	NextIndex	int
 }
 
 func NewNode(name string) *Node {
-	n := &Node{
-		Name:	name,
-		Known:	make(map[string]struct{}),
-	}
-
-	// Each node initializes knowing only its own name
-	n.Known[name] = struct{}{}
-	n.Head = &hashgraph.Event{Creator: name}
-
+	n := &Node{Name: name, NextIndex: 1}
+	n.Head = &hashgraph.Event{Creator: name, Index: 0}
+		
 	return n
-}
-
-func (n *Node) Learn(value string) {
-	n.Known[value] = struct{}{}
-}
-
-func (n *Node) Knows(value string) bool {
-	_, ok := n.Known[value]
-	return ok
 }
 

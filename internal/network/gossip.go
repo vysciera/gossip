@@ -15,14 +15,12 @@ Events create new states of knowledge.
 */
 
 func Gossip(from, to *Node) {
-	for value := range from.Known {
-		to.Learn(value)
-	}
-
 	to.Head = &hashgraph.Event{
 		Creator:		to.Name,
+		Index:			to.NextIndex,
 		SelfParent:		to.Head,
 		OtherParent:	from.Head,
 	}
-}
 
+	to.NextIndex++
+}

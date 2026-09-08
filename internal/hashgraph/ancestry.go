@@ -40,3 +40,38 @@ func IsAncestor(ancestor, descendant *Event) bool {
 
 	return false
 }
+
+func Ancestors(event *Event) []*Event {
+	if event == nil {
+		return nil
+	}
+
+	stack := []*Event{event}
+	visited := make(map[*Event]struct{})
+
+	var result []*Event
+
+	for len(stack) > 0 {
+		last := len(stack) - 1
+
+		current := stack[last]
+		stack = stack[:last]
+
+		if _, seen := visited[current]; seen {
+			continue
+		}
+
+		visited[current] = struct{}{}
+		result = append(result, current)
+
+		if current.SelfParent != nil {
+			stack = append(stack, current.SelfParent)
+		}
+
+		if current.OtherParent != nil {
+			stack = append(stack, current.OtherParent)
+		}
+	}
+
+	return result
+}
