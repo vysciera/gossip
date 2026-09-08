@@ -47,6 +47,7 @@ func main() {
 	printState(nodes)
 
 	forkDemo()
+	stronglySeeDemo()
 }
 
 func printState(nodes []*network.Node) {
@@ -201,4 +202,60 @@ func forkDemo() {
 		bob.Graph.IsFork(a1, fork.ID),
 	)
 
+}
+
+func stronglySeeDemo() {
+	fmt.Println("\n--- strongly-see demo ---")
+
+	alice := network.NewNode("alice")
+	bob := network.NewNode("bob")
+	carol := network.NewNode("carol")
+	dave := network.NewNode("dave")
+
+	membership := hashgraph.NewMembership(
+		alice.ID,
+		bob.ID,
+		carol.ID,
+		dave.ID,
+	)
+
+	// Save Alice's initial event as the event
+	// whose propagation we're interested in.
+	a0 := alice.Head
+
+	// Spread Alice's event.
+	if err := network.Gossip(alice, bob); err != nil {
+		panic(err)
+	}
+
+	if err := network.Gossip(alice, carol); err != nil {
+		panic(err)
+	}
+
+	if err := network.Gossip(alice, dave); err != nil {
+		panic(err)
+	}
+
+	// Bob leans what Carol and Dave know.
+	if err := network.Gossip(carol, bob); err != nil {
+		panic(err)
+	}
+
+	if err := network.Gossip(dave, bob); err != nil {
+		panic(err)
+	}
+
+	fmt.Printf(
+		"bob head sees A0?			%v\n",
+		bob.Graph.See(bob.Head, a0),
+	)
+
+	fmt.Printf(
+		"bob head strongly sees A0?	%v\n",
+		bob.Graph.StronglySee(
+			bob.Head,
+			a0,
+			membership,
+		),
+	)
 }
