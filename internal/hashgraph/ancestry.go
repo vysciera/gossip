@@ -166,3 +166,25 @@ func (g *Graph) IsFork(left, right EventID) bool {
 
 	return !g.IsSelfAncestor(left, right) && !g.IsSelfAncestor(right, left)
 }
+
+func (g *Graph) HasForkBy(head EventID, creator NodeID) bool {
+	history := g.Ancestors(head)
+
+	var created []EventID
+
+	for _, event := range history {
+		if event.Creator == creator {
+			created = append(created, event.ID)
+		}
+	}
+
+	for i := 0; i < len(created); i++ {
+		for j := i + 1; j < len(created); j++ {
+			if g.IsFork(created[i], created[j]) {
+				return true
+			}
+		}
+	}
+
+	return false
+}

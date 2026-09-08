@@ -174,6 +174,28 @@ func forkDemo() {
 		panic(err)
 	}
 
+	fmt.Println("\nseeing")
+
+	fmt.Printf(
+		"bob head has A1 as ancestor?	%v\n",
+		bob.Graph.IsAncestor(a1, bob.Head),
+	)
+
+	fmt.Printf(
+		"bob head sees A1?				%v\n",
+		bob.Graph.See(bob.Head, a1),
+	)
+
+	fmt.Printf(
+		"bob head has A1' as ancestor	%v\n",
+		bob.Graph.IsAncestor(fork.ID, bob.Head),
+	)
+
+	fmt.Printf(
+		"bob head sees A1'?				%v\n",
+		bob.Graph.See(bob.Head, fork.ID),
+	)
+
 	fmt.Printf(
 		"after carol -> bob, bob detects fork?	%v\n",
 		bob.Graph.IsFork(a1, fork.ID),
