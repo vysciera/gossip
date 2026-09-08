@@ -1,8 +1,8 @@
 package hashgraph
 
 type RoundInfo struct {
-	Round		uint64
-	Witness		bool
+	Round   uint64
+	Witness bool
 }
 
 func (g *Graph) DivideRounds(head EventID, membership *Membership) map[EventID]RoundInfo {
@@ -24,8 +24,8 @@ func (g *Graph) DivideRounds(head EventID, membership *Membership) map[EventID]R
 		// Genesis event.
 		if event.SelfParent == nil && event.OtherParent == nil {
 			info[event.ID] = RoundInfo{
-				Round:		1,
-				Witness:	true,
+				Round:   1,
+				Witness: true,
 			}
 
 			witnesses[1] = append(witnesses[1], event.ID)
@@ -53,7 +53,7 @@ func (g *Graph) DivideRounds(head EventID, membership *Membership) map[EventID]R
 			}
 		}
 
-		if count * 3 > membership.Len() * 2 {
+		if count*3 > membership.Len()*2 {
 			round++
 		}
 
@@ -61,8 +61,8 @@ func (g *Graph) DivideRounds(head EventID, membership *Membership) map[EventID]R
 		isWitness := round > selfInfo.Round
 
 		info[event.ID] = RoundInfo{
-			Round:		round,
-			Witness:	isWitness,
+			Round:   round,
+			Witness: isWitness,
 		}
 
 		if isWitness {
@@ -71,4 +71,28 @@ func (g *Graph) DivideRounds(head EventID, membership *Membership) map[EventID]R
 	}
 
 	return info
+}
+
+func (g *Graph) WitnessesByRound(head EventID, membership *Membership) map[uint64][]EventID {
+	result := make(map[uint64][]EventID)
+	info := g.DivideRounds(head, membership)
+
+	for _, event := range g.History(head) {
+		roundInfo, ok := info[event.ID]
+		if !ok {
+			continue
+		}
+
+		if !roundInfo.Witness {
+			continue
+		}
+
+		if !membership.Contains(event.Creator) {
+			continue
+		}
+
+		result[roundInfo.Round] = append(result[roundInfo.Round], event.ID)
+	}
+
+	return result
 }

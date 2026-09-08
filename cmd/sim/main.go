@@ -284,8 +284,8 @@ func roundDemo() {
 	)
 
 	type exchange struct {
-		from	*network.Node
-		to		*network.Node
+		from *network.Node
+		to   *network.Node
 	}
 
 	schedule := []exchange{
@@ -317,6 +317,17 @@ func roundDemo() {
 	for _, node := range nodes {
 		printRounds(node, membership)
 	}
+
+	printFirstFameVotes(alice, membership)
+
+	witnesses := alice.Graph.WitnessesByRound(alice.Head, membership)
+	if len(witnesses[1]) > 0 {
+		printFameElection(
+			alice,
+			membership,
+			witnesses[1][0],
+		)
+	}
 }
 
 func printRounds(node *network.Node, membership *hashgraph.Membership) {
@@ -346,3 +357,95 @@ func printRounds(node *network.Node, membership *hashgraph.Membership) {
 	}
 }
 
+func printFirstFameVotes(node *network.Node, membership *hashgraph.Membership) {
+	info := node.Graph.DivideRounds(node.Head, membership)
+	witnesses := node.Graph.WitnessesByRound(node.Head, membership)
+
+	fmt.Printf(
+		"\n%s virtual votes\n",
+		node.Name,
+	)
+
+	for round, candidates := range witnesses {
+		voters := witnesses[round+1]
+
+		if len(voters) == 0 {
+			continue
+		}
+
+		fmt.Printf(
+			"\nround %d candidates:\n",
+			round,
+		)
+
+		for _, candidate := range candidates {
+			fmt.Printf(
+				"  candidate %s\n",
+				candidate.Short(),
+			)
+
+			for _, voter := range voters {
+				vote, ok := node.Graph.FirstFameVote(voter, candidate, info)
+
+				if !ok {
+					continue
+				}
+
+				voterEvent, _ := node.Graph.Get(voter)
+
+				fmt.Printf(
+					"   %s [%s] -> %s\n",
+					voterEvent.Creator.Short(),
+					voter.Short(),
+					vote,
+				)
+			}
+		}
+	}
+}
+
+func printFameElection(node *network.Node, membership *hashgraph.Membership, candidate hashgraph.EventID) {
+	info := node.Graph.DivideRounds(node.Head, membership)
+	witnesses := node.Graph.WitnessesByRound(node.Head, membership)
+
+	votes := node.Graph.FameVotes(node.Head, candidate, membership)
+	candidateInfo := info[candidate]
+
+	fmt.Printf(
+		"\nfame election for %s (round %d)\n",
+		candidate.Short(),
+		candidateInfo.Round,
+	)
+
+	for round := candidateInfo.Round + 1; ; round++ {
+		roundWitnesses, ok := witnesses[round]
+		if !ok {
+			break
+		}
+
+		fmt.Printf(
+			"\nround %d\n",
+			round,
+		)
+
+		for _, voter := range roundWitnesses {
+			vote, ok := votes[hashgraph.VoteKey{
+				Candidate: candidate,
+				Voter:     voter,
+			}]
+
+			if !ok {
+				continue
+			}
+
+			event, _ := node.Graph.Get(voter)
+
+			fmt.Printf(
+				"  %s [%s] -> %s\n",
+				event.Creator.Short(),
+				voter.Short(),
+				vote,
+			)
+		}
+	}
+}
