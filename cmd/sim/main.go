@@ -322,11 +322,10 @@ func roundDemo() {
 
 	witnesses := alice.Graph.WitnessesByRound(alice.Head, membership)
 	if len(witnesses[1]) > 0 {
-		printFameElection(
-			alice,
-			membership,
-			witnesses[1][0],
-		)
+		candidate := witnesses[1][0]
+
+		printFameElection(alice, membership, candidate)
+		printFameDecision(alice, membership, candidate)
 	}
 }
 
@@ -448,4 +447,37 @@ func printFameElection(node *network.Node, membership *hashgraph.Membership, can
 			)
 		}
 	}
+}
+
+func printFameDecision(node *network.Node, membership *hashgraph.Membership, candidate hashgraph.EventID) {
+	result := node.Graph.DecideFame(
+		node.Head,
+		candidate,
+		membership,
+		hashgraph.DefaultCoinPeriod,
+	)
+
+	fmt.Printf(
+		"\nfame decision for %s\n",
+		candidate.Short(),
+	)
+
+	fmt.Printf(
+		"   result: %s\n",
+		result.Fame,
+	)
+
+	if result.Fame == hashgraph.FameUndecided {
+		return
+	}
+
+	fmt.Printf(
+		"  decision round: %d\n",
+		result.DecisionRound,
+	)
+
+	fmt.Printf(
+		"  deciding witness: %s\n",
+		result.Decider.Short(),
+	)
 }
