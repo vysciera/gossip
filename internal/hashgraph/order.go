@@ -1,6 +1,18 @@
 package hashgraph
 
-import "sort"
+import (
+	"bytes"
+	"sort"
+)
+
+type ConsensusEvent struct {
+	Event	Event
+
+	RoundReceived		uint64
+	ConsensusTimestamp	int64
+
+	WhitenedSignature	[]byte
+}
 
 // FameDecisions calculates the fame election results
 // for every witness currently known beneath head.
@@ -217,4 +229,92 @@ func (g *Graph) ConsensusTimestamp(head EventID, x EventID, membership *Membersh
 	)
 
 	return timestamps[len(timestamps) / 2], true
+}
+
+func (g *Graph) WhitenedSignature(
+	event Event,
+	roundReceived uint64,
+	witnesses map[uint64][]EventID,
+	fame map[EventID]FameResult,
+) ([]byte, bool) {
+	judges := g.UniqueFamousWitnesses(roundReceived, witnesses, fame)
+	if len(judges) == 0 {
+		return nil, false
+	}
+
+	whitened := make([]byte, len(event.Signature))
+	copy(whitened, event.Signature)
+
+	for _, judgeID := range judges {
+		judge, ok := g.Get(judgeID)
+
+		if !ok {
+			return nil, false
+		}
+
+		if len(judge.Signature) != len(whitened) {
+			return nil, false
+		}
+
+		for i := range whitened {
+			whitened[i] ^= judge.Signature[i]
+		}
+	}
+
+	return whitened, true
+}
+
+func (g *Graph) ConsensusOrder(head EventID, membership *Membership) []ConsensusEvent {
+	if membership == nil || membership.Len() == 0 || !g.Has(head) {
+		return nil
+	}
+
+	witnesses := g.WitnessesByRound(head, membership)
+	fame := g.FameDecisions(head, membership)
+
+	var ordered []ConsensusEvent
+
+	for _, event := range g.History(head) {
+		roundReceived, ok := g.RoundReceived(head, event.ID, membership)
+		if !ok {
+			continue
+		}
+
+		timestamp, ok := g.ConsensusTimestamp(head, event.ID, membership)
+		if !ok {
+			continue
+		}
+
+		whitened, ok := g.WhitenedSignature(event, roundReceived, witnesses, fame)
+		if !ok {
+			continue
+		}
+
+		ordered = append(ordered, ConsensusEvent{
+			Event:				event,
+			RoundReceived:		roundReceived,
+			ConsensusTimestamp:	timestamp,
+			WhitenedSignature:	whitened,
+		})
+	}
+
+	sort.Slice(
+		ordered,
+		func(i, j int) bool {
+			left := ordered[i]
+			right := ordered[j]
+
+			if left.RoundReceived != right.RoundReceived {
+				return left.RoundReceived < right.RoundReceived
+			}
+
+			if left.ConsensusTimestamp != right.ConsensusTimestamp {
+				return left.ConsensusTimestamp < right.ConsensusTimestamp
+			}
+
+			return bytes.Compare(left.WhitenedSignature, right.WhitenedSignature) < 0
+		},
+	)
+
+	return ordered
 }

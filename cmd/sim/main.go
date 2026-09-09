@@ -345,6 +345,10 @@ func roundDemo() {
 	}
 
 	printConsensusTimestamp(alice, membership, a0)
+
+	for _, node := range nodes {
+		printConsensusOrder(node, membership)
+	}
 }
 
 func printRounds(node *network.Node, membership *hashgraph.Membership) {
@@ -516,4 +520,29 @@ func printConsensusTimestamp(node *network.Node, membership *hashgraph.Membershi
 		"  %s\n",
 		time.Unix(0, timestamp).Format(time.RFC3339Nano),
 	)
+}
+
+func printConsensusOrder(node *network.Node, membership *hashgraph.Membership) {
+	ordered := node.Graph.ConsensusOrder(node.Head, membership)
+	fmt.Printf(
+		"\n%s consensus order\n\n",
+		node.Name,
+	)
+
+	if len(ordered) == 0 {
+		fmt.Println("  no consensus events yet")
+		return
+	}
+
+	for i, item := range ordered {
+		fmt.Printf(
+			"  %02d  creator=%s index=%-3d round=%-3d time=%s event=%s\n",
+			i,
+			item.Event.Creator.Short(),
+			item.Event.Index,
+			item.RoundReceived,
+			time.Unix(0, item.ConsensusTimestamp).Format("15:04:05.000000"),
+			item.Event.ID.Short(),
+		)
+	}
 }
