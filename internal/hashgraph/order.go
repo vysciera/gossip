@@ -6,12 +6,12 @@ import (
 )
 
 type ConsensusEvent struct {
-	Event	Event
+	Event Event
 
-	RoundReceived		uint64
-	ConsensusTimestamp	int64
+	RoundReceived      uint64
+	ConsensusTimestamp int64
 
-	WhitenedSignature	[]byte
+	WhitenedSignature []byte
 }
 
 // FameDecisions calculates the fame election results
@@ -228,7 +228,7 @@ func (g *Graph) ConsensusTimestamp(head EventID, x EventID, membership *Membersh
 		},
 	)
 
-	return timestamps[len(timestamps) / 2], true
+	return timestamps[len(timestamps)/2], true
 }
 
 func (g *Graph) WhitenedSignature(
@@ -291,10 +291,10 @@ func (g *Graph) ConsensusOrder(head EventID, membership *Membership) []Consensus
 		}
 
 		ordered = append(ordered, ConsensusEvent{
-			Event:				event,
-			RoundReceived:		roundReceived,
-			ConsensusTimestamp:	timestamp,
-			WhitenedSignature:	whitened,
+			Event:              event,
+			RoundReceived:      roundReceived,
+			ConsensusTimestamp: timestamp,
+			WhitenedSignature:  whitened,
 		})
 	}
 

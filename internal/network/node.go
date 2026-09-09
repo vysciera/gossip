@@ -23,19 +23,26 @@ type Node struct {
 }
 
 func NewNode(name string) *Node {
-	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		panic(err)
 	}
+
+	return NewNodeWithPrivateKey(name, privateKey, time.Now().UnixNano())
+}
+
+func NewNodeWithPrivateKey(name string, privateKey ed25519.PrivateKey, timestamp int64) *Node {
+	publicKey := privateKey.Public().(ed25519.PublicKey)
 
 	var id hashgraph.NodeID
 	copy(id[:], publicKey)
 
 	graph := hashgraph.NewGraph()
+
 	genesis := hashgraph.NewEvent(
 		privateKey,
 		0,
-		time.Now().UnixNano(),
+		timestamp,
 		nil,
 		nil,
 	)

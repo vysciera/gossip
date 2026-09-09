@@ -6,9 +6,25 @@ import (
 
 	"smalltalk/internal/hashgraph"
 	"smalltalk/internal/network"
+	"smalltalk/internal/sim"
 )
 
 func main() {
+	// basicGossipDemo()
+	// forkDemo()
+	// stronglySeeDemo()
+	// roundDemo()
+
+	deterministicSimulationDemo()
+}
+
+//
+// Basic gossip / hashgraph growth
+//
+
+func basicGossipDemo() {
+	fmt.Println("\n--- basic gossip demo ---")
+
 	alice := network.NewNode("alice")
 	bob := network.NewNode("bob")
 	carol := network.NewNode("carol")
@@ -21,41 +37,41 @@ func main() {
 		dave,
 	}
 
-	fmt.Println("initial")
+	fmt.Println("\ninitial")
 	printState(nodes)
 
 	fmt.Println("\nalice -> bob")
+
 	if err := network.Gossip(alice, bob); err != nil {
 		panic(err)
 	}
 
 	fmt.Println("\nbob -> carol")
+
 	if err := network.Gossip(bob, carol); err != nil {
 		panic(err)
 	}
 
 	fmt.Println("\ndave -> alice")
+
 	if err := network.Gossip(dave, alice); err != nil {
 		panic(err)
 	}
 
 	fmt.Println("\ncarol -> dave")
+
 	if err := network.Gossip(carol, dave); err != nil {
 		panic(err)
 	}
 
 	fmt.Println("\nfinal")
 	printState(nodes)
-
-	forkDemo()
-	stronglySeeDemo()
-	roundDemo()
 }
 
 func printState(nodes []*network.Node) {
 	for _, node := range nodes {
 		fmt.Printf(
-			"\n%s: [%s]: head=%s events=%d\n",
+			"\n%s [%s]: head=%s events=%d\n",
 			node.Name,
 			node.ID.Short(),
 			node.Head.Short(),
@@ -79,6 +95,10 @@ func printKnowledge(node *network.Node) {
 	}
 }
 
+//
+// Byzantine fork demo
+//
+
 func forkDemo() {
 	fmt.Println("\n--- fork demo ---")
 
@@ -86,15 +106,21 @@ func forkDemo() {
 	bob := network.NewNode("bob")
 	carol := network.NewNode("carol")
 
-	// Save Alice's initial event
+	//
+	// Alice's genesis event.
+	//
+
 	a0 := alice.Head
 
-	// Alive learns Bob's history normally.
-	// This creates:
 	//
-	//     A1
-	//    /  \
-	//  A0    B0
+	// Bob -> Alice
+	//
+	// Alice creates:
+	//
+	//        A1
+	//       /  \
+	//     A0    B0
+	//
 
 	if err := network.Gossip(bob, alice); err != nil {
 		panic(err)
@@ -102,22 +128,30 @@ func forkDemo() {
 
 	a1 := alice.Head
 
-	// Alice learns Carol's history
-	// Normally, Alice continues: A0 -> A1 -> A2
+	//
+	// Carol -> Alice
+	//
+	// Alice now learns C0 as well.
+	//
 
 	if err := network.Gossip(carol, alice); err != nil {
 		panic(err)
 	}
 
-	// Alice now knows C0
 	c0 := carol.Head
 
-	// Alice cheats. Instead of building on A1/A2, she goes back to A0
-	// and creates another event at index 1:
 	//
-	//				  A1
-	//		A0 ----<
-	//				  A1'
+	// Alice cheats.
+	//
+	// Instead of extending her current self-chain,
+	// she creates another index-1 event from A0.
+	//
+	//        A1
+	//       /
+	// A0 --<
+	//       \
+	//        A1'
+	//
 
 	fork := hashgraph.NewEvent(
 		alice.PrivateKey,
@@ -132,7 +166,7 @@ func forkDemo() {
 	}
 
 	fmt.Printf(
-		"A1 = %s\n",
+		"A1  = %s\n",
 		a1.Short(),
 	)
 
@@ -146,7 +180,10 @@ func forkDemo() {
 		alice.Graph.IsFork(a1, fork.ID),
 	)
 
-	// Alice presents different histories to Bob and Carol
+	//
+	// Alice tells Bob only about A1.
+	//
+
 	if err := network.GossipHead(
 		alice,
 		bob,
@@ -154,6 +191,10 @@ func forkDemo() {
 	); err != nil {
 		panic(err)
 	}
+
+	//
+	// Alice tells Carol only about A1'.
+	//
 
 	if err := network.GossipHead(
 		alice,
@@ -164,48 +205,56 @@ func forkDemo() {
 	}
 
 	fmt.Printf(
-		"bob detects fork?	%v\n",
+		"bob detects fork?   %v\n",
 		bob.Graph.IsFork(a1, fork.ID),
 	)
 
 	fmt.Printf(
-		"carol detects fork?	%v\n",
+		"carol detects fork? %v\n",
 		carol.Graph.IsFork(a1, fork.ID),
 	)
 
-	// Carol now gossips what she knows to Bob
+	//
+	// Carol now tells Bob her history.
+	//
+	// Bob finally obtains both branches.
+	//
+
 	if err := network.Gossip(carol, bob); err != nil {
 		panic(err)
 	}
 
+	fmt.Printf(
+		"after carol -> bob, bob detects fork? %v\n",
+		bob.Graph.IsFork(a1, fork.ID),
+	)
+
 	fmt.Println("\nseeing")
 
 	fmt.Printf(
-		"bob head has A1 as ancestor?	%v\n",
+		"bob head has A1 as ancestor?  %v\n",
 		bob.Graph.IsAncestor(a1, bob.Head),
 	)
 
 	fmt.Printf(
-		"bob head sees A1?				%v\n",
+		"bob head sees A1?             %v\n",
 		bob.Graph.See(bob.Head, a1),
 	)
 
 	fmt.Printf(
-		"bob head has A1' as ancestor	%v\n",
+		"bob head has A1' as ancestor? %v\n",
 		bob.Graph.IsAncestor(fork.ID, bob.Head),
 	)
 
 	fmt.Printf(
-		"bob head sees A1'?				%v\n",
+		"bob head sees A1'?            %v\n",
 		bob.Graph.See(bob.Head, fork.ID),
 	)
-
-	fmt.Printf(
-		"after carol -> bob, bob detects fork?	%v\n",
-		bob.Graph.IsFork(a1, fork.ID),
-	)
-
 }
+
+//
+// Strongly-see demo
+//
 
 func stronglySeeDemo() {
 	fmt.Println("\n--- strongly-see demo ---")
@@ -222,11 +271,12 @@ func stronglySeeDemo() {
 		dave.ID,
 	)
 
-	// Save Alice's initial event as the event
-	// whose propagation we're interested in.
 	a0 := alice.Head
 
-	// Spread Alice's event.
+	//
+	// Spread A0 to three other members.
+	//
+
 	if err := network.Gossip(alice, bob); err != nil {
 		panic(err)
 	}
@@ -239,7 +289,10 @@ func stronglySeeDemo() {
 		panic(err)
 	}
 
-	// Bob leans what Carol and Dave know.
+	//
+	// Bob now learns what Carol and Dave know.
+	//
+
 	if err := network.Gossip(carol, bob); err != nil {
 		panic(err)
 	}
@@ -249,12 +302,15 @@ func stronglySeeDemo() {
 	}
 
 	fmt.Printf(
-		"bob head sees A0?			%v\n",
-		bob.Graph.See(bob.Head, a0),
+		"bob head sees A0?          %v\n",
+		bob.Graph.See(
+			bob.Head,
+			a0,
+		),
 	)
 
 	fmt.Printf(
-		"bob head strongly sees A0?	%v\n",
+		"bob head strongly sees A0? %v\n",
 		bob.Graph.StronglySee(
 			bob.Head,
 			a0,
@@ -263,15 +319,18 @@ func stronglySeeDemo() {
 	)
 }
 
+//
+// Full round / witness / virtual voting /
+// consensus ordering demo
+//
+
 func roundDemo() {
-	fmt.Println("\n--- round demo ---")
+	fmt.Println("\n--- round / consensus demo ---")
 
 	alice := network.NewNode("alice")
 	bob := network.NewNode("bob")
 	carol := network.NewNode("carol")
 	dave := network.NewNode("dave")
-
-	a0 := alice.Head
 
 	nodes := []*network.Node{
 		alice,
@@ -279,6 +338,13 @@ func roundDemo() {
 		carol,
 		dave,
 	}
+
+	//
+	// Save an early ordinary event so we can
+	// inspect its later consensus metadata.
+	//
+
+	a0 := alice.Head
 
 	membership := hashgraph.NewMembership(
 		alice.ID,
@@ -291,6 +357,10 @@ func roundDemo() {
 		from *network.Node
 		to   *network.Node
 	}
+
+	//
+	// Deliberately interconnected gossip schedule.
+	//
 
 	schedule := []exchange{
 		{alice, bob},
@@ -309,58 +379,113 @@ func roundDemo() {
 		{bob, alice},
 	}
 
-	// Run several complete gossip waves
-	for cycle := 0; cycle < 3; cycle++ {
+	//
+	// Generate enough history for several rounds,
+	// fame elections, and finalized events.
+	//
+
+	for cycle := 0; cycle < 10; cycle++ {
 		for _, exchange := range schedule {
-			if err := network.Gossip(exchange.from, exchange.to); err != nil {
+			if err := network.Gossip(
+				exchange.from,
+				exchange.to,
+			); err != nil {
 				panic(err)
 			}
 		}
 	}
 
+	//
+	// Inspect derived rounds.
+	//
+
 	for _, node := range nodes {
-		printRounds(node, membership)
-	}
-
-	printFirstFameVotes(alice, membership)
-
-	witnesses := alice.Graph.WitnessesByRound(alice.Head, membership)
-	if len(witnesses[1]) > 0 {
-		candidate := witnesses[1][0]
-
-		printFameElection(alice, membership, candidate)
-		printFameDecision(alice, membership, candidate)
-	}
-
-	roundReceived, ok := alice.Graph.RoundReceived(alice.Head, a0, membership)
-	fmt.Printf("\nround received for A0\n")
-
-	if !ok {
-		fmt.Println("  UNDECIDED")
-	} else {
-		fmt.Printf(
-			"  round %d\n",
-			roundReceived,
+		printRounds(
+			node,
+			membership,
 		)
 	}
 
-	printConsensusTimestamp(alice, membership, a0)
+	//
+	// Inspect Alice's first-round witnesses
+	// and one fame election.
+	//
+
+	witnesses := alice.Graph.WitnessesByRound(
+		alice.Head,
+		membership,
+	)
+
+	if len(witnesses[1]) > 0 {
+		candidate := witnesses[1][0]
+
+		printFirstFameVotes(
+			alice,
+			membership,
+		)
+
+		printFameElection(
+			alice,
+			membership,
+			candidate,
+		)
+
+		printFameDecision(
+			alice,
+			membership,
+			candidate,
+		)
+	}
+
+	//
+	// Inspect A0's consensus metadata.
+	//
+
+	printRoundReceived(
+		alice,
+		membership,
+		a0,
+	)
+
+	printConsensusTimestamp(
+		alice,
+		membership,
+		a0,
+	)
+
+	//
+	// Finally compare the consensus order each
+	// independent node derives.
+	//
 
 	for _, node := range nodes {
-		printConsensusOrder(node, membership)
+		printConsensusOrder(
+			node,
+			membership,
+		)
 	}
 }
 
-func printRounds(node *network.Node, membership *hashgraph.Membership) {
-	info := node.Graph.DivideRounds(node.Head, membership)
+func printRounds(
+	node *network.Node,
+	membership *hashgraph.Membership,
+) {
+	info := node.Graph.DivideRounds(
+		node.Head,
+		membership,
+	)
 
 	fmt.Printf(
-		"\n%s\n",
+		"\n%s rounds\n",
 		node.Name,
 	)
 
 	for _, event := range node.Graph.History(node.Head) {
-		roundInfo := info[event.ID]
+		roundInfo, ok := info[event.ID]
+
+		if !ok {
+			continue
+		}
 
 		witness := ""
 
@@ -378,12 +503,22 @@ func printRounds(node *network.Node, membership *hashgraph.Membership) {
 	}
 }
 
-func printFirstFameVotes(node *network.Node, membership *hashgraph.Membership) {
-	info := node.Graph.DivideRounds(node.Head, membership)
-	witnesses := node.Graph.WitnessesByRound(node.Head, membership)
+func printFirstFameVotes(
+	node *network.Node,
+	membership *hashgraph.Membership,
+) {
+	info := node.Graph.DivideRounds(
+		node.Head,
+		membership,
+	)
+
+	witnesses := node.Graph.WitnessesByRound(
+		node.Head,
+		membership,
+	)
 
 	fmt.Printf(
-		"\n%s virtual votes\n",
+		"\n%s first virtual votes\n",
 		node.Name,
 	)
 
@@ -395,7 +530,7 @@ func printFirstFameVotes(node *network.Node, membership *hashgraph.Membership) {
 		}
 
 		fmt.Printf(
-			"\nround %d candidates:\n",
+			"\nround %d candidates\n",
 			round,
 		)
 
@@ -406,16 +541,26 @@ func printFirstFameVotes(node *network.Node, membership *hashgraph.Membership) {
 			)
 
 			for _, voter := range voters {
-				vote, ok := node.Graph.FirstFameVote(voter, candidate, info)
+				vote, ok :=
+					node.Graph.FirstFameVote(
+						voter,
+						candidate,
+						info,
+					)
 
 				if !ok {
 					continue
 				}
 
-				voterEvent, _ := node.Graph.Get(voter)
+				voterEvent, ok :=
+					node.Graph.Get(voter)
+
+				if !ok {
+					continue
+				}
 
 				fmt.Printf(
-					"   %s [%s] -> %s\n",
+					"    creator=%s voter=%s -> %s\n",
 					voterEvent.Creator.Short(),
 					voter.Short(),
 					vote,
@@ -425,12 +570,32 @@ func printFirstFameVotes(node *network.Node, membership *hashgraph.Membership) {
 	}
 }
 
-func printFameElection(node *network.Node, membership *hashgraph.Membership, candidate hashgraph.EventID) {
-	info := node.Graph.DivideRounds(node.Head, membership)
-	witnesses := node.Graph.WitnessesByRound(node.Head, membership)
+func printFameElection(
+	node *network.Node,
+	membership *hashgraph.Membership,
+	candidate hashgraph.EventID,
+) {
+	info := node.Graph.DivideRounds(
+		node.Head,
+		membership,
+	)
 
-	votes := node.Graph.FameVotes(node.Head, candidate, membership)
-	candidateInfo := info[candidate]
+	witnesses := node.Graph.WitnessesByRound(
+		node.Head,
+		membership,
+	)
+
+	votes := node.Graph.FameVotes(
+		node.Head,
+		candidate,
+		membership,
+	)
+
+	candidateInfo, ok := info[candidate]
+
+	if !ok {
+		return
+	}
 
 	fmt.Printf(
 		"\nfame election for %s (round %d)\n",
@@ -439,7 +604,9 @@ func printFameElection(node *network.Node, membership *hashgraph.Membership, can
 	)
 
 	for round := candidateInfo.Round + 1; ; round++ {
-		roundWitnesses, ok := witnesses[round]
+		roundWitnesses, ok :=
+			witnesses[round]
+
 		if !ok {
 			break
 		}
@@ -459,7 +626,12 @@ func printFameElection(node *network.Node, membership *hashgraph.Membership, can
 				continue
 			}
 
-			event, _ := node.Graph.Get(voter)
+			event, ok :=
+				node.Graph.Get(voter)
+
+			if !ok {
+				continue
+			}
 
 			fmt.Printf(
 				"  %s [%s] -> %s\n",
@@ -471,7 +643,11 @@ func printFameElection(node *network.Node, membership *hashgraph.Membership, can
 	}
 }
 
-func printFameDecision(node *network.Node, membership *hashgraph.Membership, candidate hashgraph.EventID) {
+func printFameDecision(
+	node *network.Node,
+	membership *hashgraph.Membership,
+	candidate hashgraph.EventID,
+) {
 	result := node.Graph.DecideFame(
 		node.Head,
 		candidate,
@@ -485,7 +661,7 @@ func printFameDecision(node *network.Node, membership *hashgraph.Membership, can
 	)
 
 	fmt.Printf(
-		"   result: %s\n",
+		"  result: %s\n",
 		result.Fame,
 	)
 
@@ -504,8 +680,46 @@ func printFameDecision(node *network.Node, membership *hashgraph.Membership, can
 	)
 }
 
-func printConsensusTimestamp(node *network.Node, membership *hashgraph.Membership, eventID hashgraph.EventID) {
-	timestamp, ok := node.Graph.ConsensusTimestamp(node.Head, eventID, membership)
+func printRoundReceived(
+	node *network.Node,
+	membership *hashgraph.Membership,
+	eventID hashgraph.EventID,
+) {
+	roundReceived, ok :=
+		node.Graph.RoundReceived(
+			node.Head,
+			eventID,
+			membership,
+		)
+
+	fmt.Printf(
+		"\nround received for %s\n",
+		eventID.Short(),
+	)
+
+	if !ok {
+		fmt.Println("  UNDECIDED")
+		return
+	}
+
+	fmt.Printf(
+		"  round %d\n",
+		roundReceived,
+	)
+}
+
+func printConsensusTimestamp(
+	node *network.Node,
+	membership *hashgraph.Membership,
+	eventID hashgraph.EventID,
+) {
+	timestamp, ok :=
+		node.Graph.ConsensusTimestamp(
+			node.Head,
+			eventID,
+			membership,
+		)
+
 	fmt.Printf(
 		"\nconsensus timestamp for %s\n",
 		eventID.Short(),
@@ -518,12 +732,22 @@ func printConsensusTimestamp(node *network.Node, membership *hashgraph.Membershi
 
 	fmt.Printf(
 		"  %s\n",
-		time.Unix(0, timestamp).Format(time.RFC3339Nano),
+		time.Unix(
+			0,
+			timestamp,
+		).Format(time.RFC3339Nano),
 	)
 }
 
-func printConsensusOrder(node *network.Node, membership *hashgraph.Membership) {
-	ordered := node.Graph.ConsensusOrder(node.Head, membership)
+func printConsensusOrder(
+	node *network.Node,
+	membership *hashgraph.Membership,
+) {
+	ordered := node.Graph.ConsensusOrder(
+		node.Head,
+		membership,
+	)
+
 	fmt.Printf(
 		"\n%s consensus order\n\n",
 		node.Name,
@@ -536,13 +760,51 @@ func printConsensusOrder(node *network.Node, membership *hashgraph.Membership) {
 
 	for i, item := range ordered {
 		fmt.Printf(
-			"  %02d  creator=%s index=%-3d round=%-3d time=%s event=%s\n",
+			"  %03d  creator=%s index=%-3d round=%-3d time=%s event=%s\n",
 			i,
 			item.Event.Creator.Short(),
 			item.Event.Index,
 			item.RoundReceived,
-			time.Unix(0, item.ConsensusTimestamp).Format("15:04:05.000000"),
+			time.Unix(
+				0,
+				item.ConsensusTimestamp,
+			).Format("15:04:05.000000"),
 			item.Event.ID.Short(),
 		)
 	}
+}
+
+func deterministicSimulationDemo() {
+	fmt.Println(
+		"\n--- deterministic simulation ---",
+	)
+
+	s := sim.New(
+		42,
+		"alice",
+		"bob",
+		"carol",
+		"dave",
+	)
+
+	if err := s.Run(100); err != nil {
+		panic(err)
+	}
+
+	for _, node := range s.Nodes {
+		order := node.Graph.ConsensusOrder(node.Head, s.Membership)
+
+		fmt.Printf(
+			"%s: events=%d consensus=%d head=%s\n",
+			node.Name,
+			node.Graph.Len(),
+			len(order),
+			node.Head.Short(),
+		)
+	}
+
+	common, agreement := s.ConsensusPrefixesAgree()
+
+	fmt.Printf("\ncommon consensus prefix: %d\n", common)
+	fmt.Printf("agreement: %v\n", agreement)
 }

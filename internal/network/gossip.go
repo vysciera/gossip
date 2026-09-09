@@ -13,7 +13,25 @@ func Gossip(from, to *Node) error {
 	return GossipHead(from, to, from.Head)
 }
 
+func GossipAt(from, to *Node, timestamp int64) error {
+	return GossipHeadAt(
+		from,
+		to,
+		from.Head,
+		timestamp,
+	)
+}
+
 func GossipHead(from *Node, to *Node, head hashgraph.EventID) error {
+	return GossipHeadAt(
+		from,
+		to,
+		head,
+		time.Now().UnixNano(),
+	)
+}
+
+func GossipHeadAt(from, to *Node, head hashgraph.EventID, timestamp int64) error {
 	if !from.Graph.Has(head) {
 		return ErrUnknownGossipHead
 	}
@@ -32,7 +50,7 @@ func GossipHead(from *Node, to *Node, head hashgraph.EventID) error {
 	event := hashgraph.NewEvent(
 		to.PrivateKey,
 		to.NextIndex,
-		time.Now().UnixNano(),
+		timestamp,
 		&selfParent,
 		&otherParent,
 	)
