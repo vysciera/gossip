@@ -1,5 +1,7 @@
 package hashgraph
 
+import "sort"
+
 // FameDecisions calculates the fame election results
 // for every witness currently known beneath head.
 func (g *Graph) FameDecisions(head EventID, membership *Membership) map[EventID]FameResult {
@@ -126,7 +128,7 @@ func (g *Graph) RoundReceived(head EventID, x EventID, membership *Membership) (
 
 		for _, judge := range judges {
 			if !g.IsAncestor(x, judge) {
-				received = false 
+				received = false
 				break
 			}
 		}
@@ -149,4 +151,70 @@ func maxWitnessRound(witnesses map[uint64][]EventID) uint64 {
 	}
 
 	return max
+}
+
+func (g *Graph) FirstReceivedEvent(x, judge EventID) (Event, bool) {
+	if !g.Has(x) || !g.Has(judge) {
+		return Event{}, false
+	}
+
+	if !g.IsAncestor(x, judge) {
+		return Event{}, false
+	}
+
+	currentID := judge
+
+	for {
+		current, ok := g.Get(currentID)
+		if !ok {
+			return Event{}, false
+		}
+
+		if current.SelfParent == nil {
+			return current, true
+		}
+
+		if !g.IsAncestor(x, *current.SelfParent) {
+			return current, true
+		}
+
+		currentID = *current.SelfParent
+	}
+}
+
+func (g *Graph) ConsensusTimestamp(head EventID, x EventID, membership *Membership) (int64, bool) {
+	roundReceived, ok := g.RoundReceived(head, x, membership)
+	if !ok {
+		return 0, false
+	}
+
+	witnesses := g.WitnessesByRound(head, membership)
+
+	fame := g.FameDecisions(head, membership)
+	judges := g.UniqueFamousWitnesses(roundReceived, witnesses, fame)
+
+	if len(judges) == 0 {
+		return 0, false
+	}
+
+	timestamps := make([]int64, 0, len(judges))
+
+	for _, judge := range judges {
+		firstReceived, ok := g.FirstReceivedEvent(x, judge)
+
+		if !ok {
+			return 0, false
+		}
+
+		timestamps = append(timestamps, firstReceived.Timestamp)
+	}
+
+	sort.Slice(
+		timestamps,
+		func(i, j int) bool {
+			return timestamps[i] < timestamps[j]
+		},
+	)
+
+	return timestamps[len(timestamps) / 2], true
 }

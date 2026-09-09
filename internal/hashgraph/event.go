@@ -17,13 +17,15 @@ type Event struct {
 	Creator NodeID
 	Index   uint64
 
+	Timestamp int64
+
 	SelfParent  *EventID
 	OtherParent *EventID
 
 	Signature []byte
 }
 
-func NewEvent(privateKey ed25519.PrivateKey, index uint64, selfParent, otherParent *EventID) Event {
+func NewEvent(privateKey ed25519.PrivateKey, index uint64, timestamp int64, selfParent, otherParent *EventID) Event {
 	publicKey := privateKey.Public().(ed25519.PublicKey)
 
 	var creator NodeID
@@ -32,6 +34,7 @@ func NewEvent(privateKey ed25519.PrivateKey, index uint64, selfParent, otherPare
 	event := Event{
 		Creator:     creator,
 		Index:       index,
+		Timestamp:   timestamp,
 		SelfParent:  cloneID(selfParent),
 		OtherParent: cloneID(otherParent),
 	}
@@ -54,6 +57,12 @@ func (e Event) calculateID() EventID {
 		&buf,
 		binary.BigEndian,
 		e.Index,
+	)
+
+	_ = binary.Write(
+		&buf,
+		binary.BigEndian,
+		e.Timestamp,
 	)
 
 	writeParent(&buf, e.SelfParent)

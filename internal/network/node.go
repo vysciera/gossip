@@ -3,6 +3,7 @@ package network
 import (
 	"crypto/ed25519"
 	"crypto/rand"
+	"time"
 
 	"smalltalk/internal/hashgraph"
 )
@@ -34,6 +35,7 @@ func NewNode(name string) *Node {
 	genesis := hashgraph.NewEvent(
 		privateKey,
 		0,
+		time.Now().UnixNano(),
 		nil,
 		nil,
 	)

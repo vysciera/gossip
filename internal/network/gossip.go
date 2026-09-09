@@ -2,6 +2,7 @@ package network
 
 import (
 	"errors"
+	"time"
 
 	"smalltalk/internal/hashgraph"
 )
@@ -31,6 +32,7 @@ func GossipHead(from *Node, to *Node, head hashgraph.EventID) error {
 	event := hashgraph.NewEvent(
 		to.PrivateKey,
 		to.NextIndex,
+		time.Now().UnixNano(),
 		&selfParent,
 		&otherParent,
 	)

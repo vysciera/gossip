@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"smalltalk/internal/hashgraph"
 	"smalltalk/internal/network"
@@ -121,6 +122,7 @@ func forkDemo() {
 	fork := hashgraph.NewEvent(
 		alice.PrivateKey,
 		1,
+		time.Now().UnixNano(),
 		&a0,
 		&c0,
 	)
@@ -341,6 +343,8 @@ func roundDemo() {
 			roundReceived,
 		)
 	}
+
+	printConsensusTimestamp(alice, membership, a0)
 }
 
 func printRounds(node *network.Node, membership *hashgraph.Membership) {
@@ -493,5 +497,23 @@ func printFameDecision(node *network.Node, membership *hashgraph.Membership, can
 	fmt.Printf(
 		"  deciding witness: %s\n",
 		result.Decider.Short(),
+	)
+}
+
+func printConsensusTimestamp(node *network.Node, membership *hashgraph.Membership, eventID hashgraph.EventID) {
+	timestamp, ok := node.Graph.ConsensusTimestamp(node.Head, eventID, membership)
+	fmt.Printf(
+		"\nconsensus timestamp for %s\n",
+		eventID.Short(),
+	)
+
+	if !ok {
+		fmt.Println("  UNDECIDED")
+		return
+	}
+
+	fmt.Printf(
+		"  %s\n",
+		time.Unix(0, timestamp).Format(time.RFC3339Nano),
 	)
 }
