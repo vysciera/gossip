@@ -4,18 +4,18 @@ import (
 	"fmt"
 	"time"
 
-	"smalltalk/internal/hashgraph"
-	"smalltalk/internal/network"
-	"smalltalk/internal/sim"
+	"gossip/internal/hashgraph"
+	"gossip/internal/network"
+	"gossip/internal/sim"
 )
 
 func main() {
 	// basicGossipDemo()
-	// forkDemo()
+	forkDemo()
 	// stronglySeeDemo()
-	// roundDemo()
+	roundDemo()
 
-	deterministicSimulationDemo()
+	// deterministicSimulationDemo()
 }
 
 //

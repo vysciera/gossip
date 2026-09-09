@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"smalltalk/internal/hashgraph"
+	"gossip/internal/hashgraph"
 )
 
 var ErrUnknownGossipHead = errors.New("unknown gossip head")

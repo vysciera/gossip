@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"time"
 
-	"smalltalk/internal/hashgraph"
+	"gossip/internal/hashgraph"
 )
 
 type Node struct {

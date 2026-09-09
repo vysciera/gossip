@@ -6,8 +6,8 @@ import (
 	"encoding/binary"
 	"math/rand"
 
-	"smalltalk/internal/hashgraph"
-	"smalltalk/internal/network"
+	"gossip/internal/hashgraph"
+	"gossip/internal/network"
 )
 
 type Interaction struct {
