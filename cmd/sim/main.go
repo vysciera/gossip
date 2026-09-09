@@ -269,6 +269,8 @@ func roundDemo() {
 	carol := network.NewNode("carol")
 	dave := network.NewNode("dave")
 
+	a0 := alice.Head
+
 	nodes := []*network.Node{
 		alice,
 		bob,
@@ -326,6 +328,18 @@ func roundDemo() {
 
 		printFameElection(alice, membership, candidate)
 		printFameDecision(alice, membership, candidate)
+	}
+
+	roundReceived, ok := alice.Graph.RoundReceived(alice.Head, a0, membership)
+	fmt.Printf("\nround received for A0\n")
+
+	if !ok {
+		fmt.Println("  UNDECIDED")
+	} else {
+		fmt.Printf(
+			"  round %d\n",
+			roundReceived,
+		)
 	}
 }
 
